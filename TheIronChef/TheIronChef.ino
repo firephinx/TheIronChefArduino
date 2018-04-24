@@ -329,7 +329,7 @@ void stayCallback(const std_msgs::Empty& stay_msg){
   desired_z_gantry_position = current_z_gantry_position;
   desired_arm_turntable_degree = current_arm_turntable_degree;
   desired_arm_elbow_degree = current_arm_elbow_degree;
-  desired_end_effector_degree = current_arm_end_effector_degree;
+  desired_end_effector_degree = current_end_effector_degree;
 }
 
 // Stay Command Subscriber
@@ -625,6 +625,27 @@ void ZGantryCalibrationSequence()
   }
 }
 
+void homeArmTurntable()
+{
+  arm_turntable_servo.write(90);
+  current_arm_turntable_degree = 90;
+  home_arm_turntable_flag = false;
+}
+
+void homeArmElbow()
+{
+  arm_elbow_servo.write(0);
+  current_arm_elbow_degree = 0;
+  home_arm_elbow_flag = false;
+}
+
+void homeEndEffector()
+{
+  end_effector_servo.write(90);
+  current_end_effector_degree = 90;
+  home_end_effector_flag = false;
+}
+
 // Publish the current joint state positions of the turntable, x-gantry, and z-gantry to ROS
 void publishJointStates()
 {
@@ -880,7 +901,7 @@ void turnArmTurntable()
 {
   arm_turntable_servo.write(desired_arm_turntable_degree);
   current_arm_turntable_degree = desired_arm_turntable_degree;
-  turn_arm_turntable_flag = true;
+  turn_arm_turntable_flag = false;
 
   if(!move_arm_elbow_flag && !move_end_effector_flag)
   {
@@ -893,7 +914,7 @@ void moveArmElbow()
 {
   arm_elbow_servo.write(desired_arm_elbow_degree);
   current_arm_elbow_degree = desired_arm_elbow_degree;
-  move_arm_elbow_flag = true;
+  move_arm_elbow_flag = false;
 
   if(!turn_arm_turntable_flag && !move_end_effector_flag)
   {
@@ -906,7 +927,7 @@ void moveEndEffector()
 {
   end_effector_servo.write(desired_end_effector_degree);
   current_end_effector_degree = desired_end_effector_degree;
-  move_end_effector_flag = true;
+  move_end_effector_flag = false;
 
   if(!turn_arm_turntable_flag && !move_arm_elbow_flag)
   {
