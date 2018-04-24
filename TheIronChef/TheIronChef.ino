@@ -651,17 +651,20 @@ void loop()
     }
     else
     {
-      if(move_x_gantry_flag)
+      if(move_x_gantry_flag || move_y_gantry_flag || move_z_gantry_flag)
       {
-        moveXGantry();
-      } 
-      else if(move_y_gantry_flag)
-      {
-        moveYGantry();
-      }
-      else if(move_z_gantry_flag)
-      {
-        moveZGantry();
+        if(move_x_gantry_flag)
+        {
+          moveXGantry();
+        } 
+        if(move_y_gantry_flag)
+        {
+          moveYGantry();
+        }
+        if(move_z_gantry_flag)
+        {
+          moveZGantry();
+        }
       }
       else if(turn_arm_turntable_flag)
       {
@@ -740,7 +743,7 @@ void moveXGantry()
   }
   current_x_gantry_position = ((float)(x_gantry_step_count) / x_gantry_steps_per_revolution) * x_gantry_distance_per_revolution;
 
-  if(abs(current_x_gantry_position - desired_x_gantry_position) <= x_gantry_threshold)
+  if(abs(num_x_gantry_steps) <= x_gantry_step_interval)
   {
     move_x_gantry_flag = false;
     if(!move_y_gantry_flag && !move_z_gantry_flag)
@@ -801,7 +804,7 @@ void moveYGantry()
   }
   current_y_gantry_position = ((float)(y_gantry_step_count) / y_gantry_steps_per_revolution) * y_gantry_distance_per_revolution;
 
-  if(abs(current_y_gantry_position - desired_y_gantry_position) <= y_gantry_threshold)
+  if(abs(num_y_gantry_steps) <= y_gantry_step_interval)
   {
     move_y_gantry_flag = false;
     if(!move_x_gantry_flag && !move_z_gantry_flag)
@@ -862,7 +865,7 @@ void moveZGantry()
   }
   current_z_gantry_position = ((float)(z_gantry_step_count) / z_gantry_steps_per_revolution) * z_gantry_distance_per_revolution;
 
-  if(abs(current_z_gantry_position - desired_z_gantry_position) <= z_gantry_threshold)
+  if(abs(num_z_gantry_steps) <= z_gantry_step_interval)
   {
     move_z_gantry_flag = false;
     if(!move_x_gantry_flag && !move_y_gantry_flag)
