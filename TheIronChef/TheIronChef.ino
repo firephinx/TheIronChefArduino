@@ -428,7 +428,7 @@ void home()
   }
   else if(home_arm_elbow_flag)
   {
-    homeElbow();
+    homeArmElbow();
   }
   else if(home_end_effector_flag)
   {
@@ -499,7 +499,7 @@ void XGantryCalibrationSequence()
   digitalWrite(XGantryStepper1Direction, HIGH);
   digitalWrite(XGantryStepper2Direction, HIGH);
 
-  while (digitalRead(XAxisLimitSwitch) != 1)
+  while (digitalRead(XAxisLimitSwitch1) != 1 && digitalRead(XAxisLimitSwitch2) != 1)
   {
    digitalWrite(XGantryStepper1Pulse, HIGH);
    digitalWrite(XGantryStepper2Pulse, HIGH);
