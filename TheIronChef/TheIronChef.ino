@@ -81,7 +81,7 @@ float current_x_gantry_position = 0.0;
 long x_gantry_step_count = 0;
 const int num_x_gantry_steps_from_limit_switch = 300;
 const int x_gantry_step_interval = 300;
-const int x_gantry_step_time = 1000;
+const int x_gantry_step_time = 1500;
 const int x_gantry_steps_per_revolution = 400;
 const float x_gantry_distance_per_revolution = 0.005; // 5 mm pitch
 const float x_gantry_length = 1.27; // 1.27m or 50"
@@ -367,14 +367,19 @@ void setup()
   pinMode(YAxisLimitSwitch, INPUT_PULLUP); 
   pinMode(ZAxisLimitSwitch, INPUT_PULLUP); 
 
-  // Enable stepper motors by setting their enable lines to low
-  digitalWrite(XGantryStepper1Enable, LOW);
-  digitalWrite(XGantryStepper2Enable, LOW);
-  digitalWrite(YGantryStepperEnable, LOW);
-  digitalWrite(ZGantryStepperEnable, LOW);
+  // Disable stepper motors by setting their enable lines to high
+  digitalWrite(XGantryStepper1Enable, HIGH);
+  digitalWrite(XGantryStepper2Enable, HIGH);
+  digitalWrite(YGantryStepperEnable, HIGH);
+  digitalWrite(ZGantryStepperEnable, HIGH);
 
   // Turn off the electromagnet initially by setting the pin to high
   digitalWrite(ElectromagnetRelay, HIGH);
+
+  // Set the Servos to their default positions
+  arm_turntable_servo.write(90);
+  arm_elbow_servo.write(0);
+  end_effector_servo.write(0);
 
   // ROS Serial Initialization Code
 
@@ -443,6 +448,11 @@ void homeXGantry()
 {
   int num_steps = 0;
 
+  // Enable X Gantry Steppers
+  digitalWrite(XGantryStepper1Enable, LOW);
+  digitalWrite(XGantryStepper2Enable, LOW);
+
+  // Move Backwards
   digitalWrite(XGantryStepper1Direction, HIGH);
   digitalWrite(XGantryStepper2Direction, HIGH);
 
@@ -493,6 +503,10 @@ void homeXGantry()
 
   // Update current_x_gantry_position with the current x_gantry_step_count
   current_x_gantry_position = ((float)(x_gantry_step_count) / x_gantry_steps_per_revolution) * x_gantry_distance_per_revolution;
+
+  // Disable X Gantry Steppers
+  digitalWrite(XGantryStepper1Enable, HIGH);
+  digitalWrite(XGantryStepper2Enable, HIGH);
 }
 
 // Conducts the X Gantry Calibration Sequence after the limit switch has been hit, which involves 
@@ -526,6 +540,10 @@ void homeYGantry()
 {
   int num_steps = 0;
 
+  // Enable Y Gantry Stepper
+  digitalWrite(YGantryStepperEnable, LOW);
+
+  // Move Backwards
   digitalWrite(YGantryStepperDirection, HIGH);
 
   while(num_steps < y_gantry_step_interval && digitalRead(YAxisLimitSwitch) != 0)
@@ -552,6 +570,9 @@ void homeYGantry()
 
   // Update current_x_gantry_position with the current x_gantry_step_count
   current_y_gantry_position = ((float)(y_gantry_step_count) / y_gantry_steps_per_revolution) * y_gantry_distance_per_revolution;
+
+  // Disable Y Gantry Stepper
+  digitalWrite(YGantryStepperEnable, HIGH);
 }
 
 // Conducts the Y Gantry Calibration Sequence after the limit switch has been hit, which involves 
@@ -579,6 +600,10 @@ void homeZGantry()
 {
   int num_steps = 0;
 
+  // Enable Z Gantry Stepper
+  digitalWrite(ZGantryStepperEnable, LOW);
+
+  // Move Backward
   digitalWrite(ZGantryStepperDirection, HIGH);
 
   while(num_steps < z_gantry_step_interval && digitalRead(ZAxisLimitSwitch) != 0)
@@ -605,6 +630,9 @@ void homeZGantry()
 
   // Update current_z_gantry_position with the current z_gantry_step_count
   current_z_gantry_position = ((float)(z_gantry_step_count) / z_gantry_steps_per_revolution) * z_gantry_distance_per_revolution;
+
+  // Disable Z Gantry Stepper
+  digitalWrite(ZGantryStepperEnable, HIGH);
 }
 
 // Conducts the Z Gantry Calibration Sequence after the limit switch has been hit, which involves 
@@ -713,6 +741,10 @@ void loop()
 
 void moveXGantry()
 {
+  // Enable X Gantry Steppers
+  digitalWrite(XGantryStepper1Enable, LOW);
+  digitalWrite(XGantryStepper2Enable, LOW);
+  
   long num_x_gantry_steps = (long)(((desired_x_gantry_position - current_x_gantry_position) / x_gantry_distance_per_revolution) * x_gantry_steps_per_revolution);
 
   if(num_x_gantry_steps > 0)
@@ -722,13 +754,58 @@ void moveXGantry()
     digitalWrite(XGantryStepper2Direction, LOW);
 
     for (long i = 0; i < min(x_gantry_step_interval, num_x_gantry_steps); i++)
-    {         
+    {   
+      // Check to see if the X Axis Limit Switches were hit
+      if(digitalRead(XAxisLimitSwitch1) == 0 || digitalRead(XAxisLimitSwitch2) == 0)
+      { 
+        if(digitalRead(XAxisLimitSwitch1) == 0 && digitalRead(XAxisLimitSwitch2) == 0)
+        {
+        }
+        else if(digitalRead(XAxisLimitSwitch1) == 0)
+        {
+          while(digitalRead(XAxisLimitSwitch2) != 0)
+          {
+            digitalWrite(XGantryStepper2Pulse, HIGH);
+            digitalWrite(XGantryStepper2Pulse, LOW);
+      
+            delayMicroseconds(x_gantry_step_time);
+          }
+        }
+        else if(digitalRead(XAxisLimitSwitch2) == 0)
+        {
+          while(digitalRead(XAxisLimitSwitch1) != 0)
+          {
+            digitalWrite(XGantryStepper1Pulse, HIGH);
+            digitalWrite(XGantryStepper1Pulse, LOW);
+      
+            delayMicroseconds(x_gantry_step_time);
+          }
+        }
+        // Conduct the X Gantry Calibration Sequence
+        XGantryCalibrationSequence();
+      
+        // Set the x_gantry_step_count to 0
+        x_gantry_step_count = 0;
+      
+        current_x_gantry_position = ((float)(x_gantry_step_count) / x_gantry_steps_per_revolution) * x_gantry_distance_per_revolution;
+        move_x_gantry_flag = false;
+        done_moving_gantry_msg.data = false;
+        done_moving_gantry_pub.publish(&done_moving_gantry_msg);
+        // Disable X Gantry Steppers
+        digitalWrite(XGantryStepper1Enable, HIGH);
+        digitalWrite(XGantryStepper2Enable, HIGH);
+        return;
+      }
+            
       if(x_gantry_step_count >= max_x_gantry_steps)
       {
         current_x_gantry_position = ((float)(x_gantry_step_count) / x_gantry_steps_per_revolution) * x_gantry_distance_per_revolution;
         move_x_gantry_flag = false;
         done_moving_gantry_msg.data = false;
         done_moving_gantry_pub.publish(&done_moving_gantry_msg);
+        // Disable X Gantry Steppers
+        digitalWrite(XGantryStepper1Enable, HIGH);
+        digitalWrite(XGantryStepper2Enable, HIGH);
         return;
       }
       digitalWrite(XGantryStepper1Pulse, HIGH);
@@ -747,13 +824,57 @@ void moveXGantry()
     digitalWrite(XGantryStepper2Direction, HIGH);
 
     for (long i = 0; i < min(x_gantry_step_interval, -num_x_gantry_steps); i++)
-    {         
+    { 
+      // Check to see if the X Axis Limit Switches were hit
+      if(digitalRead(XAxisLimitSwitch1) == 0 || digitalRead(XAxisLimitSwitch2) == 0)
+      { 
+        if(digitalRead(XAxisLimitSwitch1) == 0 && digitalRead(XAxisLimitSwitch2) == 0)
+        {
+        }
+        else if(digitalRead(XAxisLimitSwitch1) == 0)
+        {
+          while(digitalRead(XAxisLimitSwitch2) != 0)
+          {
+            digitalWrite(XGantryStepper2Pulse, HIGH);
+            digitalWrite(XGantryStepper2Pulse, LOW);
+      
+            delayMicroseconds(x_gantry_step_time);
+          }
+        }
+        else if(digitalRead(XAxisLimitSwitch2) == 0)
+        {
+          while(digitalRead(XAxisLimitSwitch1) != 0)
+          {
+            digitalWrite(XGantryStepper1Pulse, HIGH);
+            digitalWrite(XGantryStepper1Pulse, LOW);
+      
+            delayMicroseconds(x_gantry_step_time);
+          }
+        }
+        // Conduct the X Gantry Calibration Sequence
+        XGantryCalibrationSequence();
+      
+        // Set the x_gantry_step_count to 0
+        x_gantry_step_count = 0;
+      
+        current_x_gantry_position = ((float)(x_gantry_step_count) / x_gantry_steps_per_revolution) * x_gantry_distance_per_revolution;
+        move_x_gantry_flag = false;
+        done_moving_gantry_msg.data = false;
+        done_moving_gantry_pub.publish(&done_moving_gantry_msg);
+        // Disable X Gantry Steppers
+        digitalWrite(XGantryStepper1Enable, HIGH);
+        digitalWrite(XGantryStepper2Enable, HIGH);
+        return;
+      }        
       if(x_gantry_step_count == 0)
       {
         current_x_gantry_position = 0.0;
         move_x_gantry_flag = false;
         done_moving_gantry_msg.data = false;
         done_moving_gantry_pub.publish(&done_moving_gantry_msg);
+        // Disable X Gantry Steppers
+        digitalWrite(XGantryStepper1Enable, HIGH);
+        digitalWrite(XGantryStepper2Enable, HIGH);
         return;
       }
       digitalWrite(XGantryStepper1Pulse, HIGH);
@@ -770,6 +891,9 @@ void moveXGantry()
   if(abs(num_x_gantry_steps) <= x_gantry_step_interval)
   {
     move_x_gantry_flag = false;
+    // Disable X Gantry Steppers
+    digitalWrite(XGantryStepper1Enable, HIGH);
+    digitalWrite(XGantryStepper2Enable, HIGH);
     if(!move_y_gantry_flag && !move_z_gantry_flag)
     {
       done_moving_gantry_msg.data = true;
@@ -780,6 +904,9 @@ void moveXGantry()
 
 void moveYGantry()
 {
+  // Enable Y Gantry Stepper
+  digitalWrite(YGantryStepperEnable, LOW);
+  
   long num_y_gantry_steps = (long)(((desired_y_gantry_position - current_y_gantry_position) / y_gantry_distance_per_revolution) * y_gantry_steps_per_revolution);
 
   if(num_y_gantry_steps > 0)
@@ -789,12 +916,30 @@ void moveYGantry()
 
     for (long i = 0; i < min(y_gantry_step_interval, num_y_gantry_steps); i++)
     {         
+      if(digitalRead(YAxisLimitSwitch) == 0)
+      {         
+        // Conduct the Y Gantry Calibration Sequence
+        YGantryCalibrationSequence();
+    
+        // Set the y_gantry_step_count to 0
+        y_gantry_step_count = 0;
+
+        current_y_gantry_position = ((float)(y_gantry_step_count) / y_gantry_steps_per_revolution) * y_gantry_distance_per_revolution;
+        move_y_gantry_flag = false;
+        done_moving_gantry_msg.data = false;
+        done_moving_gantry_pub.publish(&done_moving_gantry_msg);
+        // Disable Y Gantry Stepper
+        digitalWrite(YGantryStepperEnable, HIGH);
+        return;
+      }
       if(y_gantry_step_count >= max_y_gantry_steps)
       {
         current_y_gantry_position = ((float)(y_gantry_step_count) / y_gantry_steps_per_revolution) * y_gantry_distance_per_revolution;
         move_y_gantry_flag = false;
         done_moving_gantry_msg.data = false;
         done_moving_gantry_pub.publish(&done_moving_gantry_msg);
+        // Disable Y Gantry Stepper
+        digitalWrite(YGantryStepperEnable, HIGH);
         return;
       }
       digitalWrite(YGantryStepperPulse, HIGH);
@@ -810,13 +955,31 @@ void moveYGantry()
     digitalWrite(YGantryStepperDirection, HIGH);
 
     for (long i = 0; i < min(y_gantry_step_interval, -num_y_gantry_steps); i++)
-    {         
+    { 
+      if(digitalRead(YAxisLimitSwitch) == 0)
+      {         
+        // Conduct the Y Gantry Calibration Sequence
+        YGantryCalibrationSequence();
+    
+        // Set the y_gantry_step_count to 0
+        y_gantry_step_count = 0;
+
+        current_y_gantry_position = ((float)(y_gantry_step_count) / y_gantry_steps_per_revolution) * y_gantry_distance_per_revolution;
+        move_y_gantry_flag = false;
+        done_moving_gantry_msg.data = false;
+        done_moving_gantry_pub.publish(&done_moving_gantry_msg);
+        // Disable Y Gantry Stepper
+        digitalWrite(YGantryStepperEnable, HIGH);
+        return;
+      }        
       if(y_gantry_step_count == 0)
       {
         current_y_gantry_position = 0.0;
         move_y_gantry_flag = false;
         done_moving_gantry_msg.data = false;
         done_moving_gantry_pub.publish(&done_moving_gantry_msg);
+        // Disable Y Gantry Stepper
+        digitalWrite(YGantryStepperEnable, HIGH);
         return;
       }
       digitalWrite(YGantryStepperPulse, HIGH);
@@ -831,6 +994,8 @@ void moveYGantry()
   if(abs(num_y_gantry_steps) <= y_gantry_step_interval)
   {
     move_y_gantry_flag = false;
+    // Disable Y Gantry Stepper
+    digitalWrite(YGantryStepperEnable, HIGH);
     if(!move_x_gantry_flag && !move_z_gantry_flag)
     {
       done_moving_gantry_msg.data = true;
@@ -841,12 +1006,15 @@ void moveYGantry()
 
 void moveZGantry()
 {
+  // Enable Z Gantry Stepper
+  digitalWrite(ZGantryStepperEnable, LOW);
+  
   long num_z_gantry_steps = (long)(((desired_z_gantry_position - current_z_gantry_position) / z_gantry_distance_per_revolution) * z_gantry_steps_per_revolution);
 
   if(num_z_gantry_steps > 0)
   {
     // Move Z Gantry Up
-    digitalWrite(ZGantryStepperDirection, HIGH);
+    digitalWrite(ZGantryStepperDirection, LOW);
 
     for (long i = 0; i < min(z_gantry_step_interval, num_z_gantry_steps); i++)
     {         
@@ -856,6 +1024,8 @@ void moveZGantry()
         move_z_gantry_flag = false;
         done_moving_gantry_msg.data = false;
         done_moving_gantry_pub.publish(&done_moving_gantry_msg);
+        // Disable Z Gantry Stepper
+        digitalWrite(ZGantryStepperEnable, HIGH);
         return;
       }
       digitalWrite(ZGantryStepperPulse, HIGH);
@@ -868,7 +1038,7 @@ void moveZGantry()
   else
   {
     // Move Z Gantry Down
-    digitalWrite(ZGantryStepperDirection, LOW);
+    digitalWrite(ZGantryStepperDirection, HIGH);
 
     for (long i = 0; i < min(z_gantry_step_interval, -num_z_gantry_steps); i++)
     {         
@@ -878,6 +1048,8 @@ void moveZGantry()
         move_z_gantry_flag = false;
         done_moving_gantry_msg.data = false;
         done_moving_gantry_pub.publish(&done_moving_gantry_msg);
+        // Disable Z Gantry Stepper
+        digitalWrite(ZGantryStepperEnable, HIGH);
         return;
       }
       digitalWrite(ZGantryStepperPulse, HIGH);
@@ -892,6 +1064,8 @@ void moveZGantry()
   if(abs(num_z_gantry_steps) <= z_gantry_step_interval)
   {
     move_z_gantry_flag = false;
+    // Disable Z Gantry Stepper
+    digitalWrite(ZGantryStepperEnable, HIGH);
     if(!move_x_gantry_flag && !move_y_gantry_flag)
     {
       done_moving_gantry_msg.data = true;
@@ -902,32 +1076,59 @@ void moveZGantry()
 
 void turnArmTurntable()
 {
-  arm_turntable_servo.write(desired_arm_turntable_degree);
-  current_arm_turntable_degree = desired_arm_turntable_degree;
-  turn_arm_turntable_flag = false;
+  int arm_turntable_degree_error = desired_arm_turntable_degree - current_arm_turntable_degree;
 
-  if(!move_arm_elbow_flag && !move_end_effector_flag)
+  if(arm_turntable_degree_error == 0)
   {
-    done_moving_arm_msg.data = true;
-    done_moving_arm_pub.publish(&done_moving_arm_msg);
+    turn_arm_turntable_flag = false;
+
+    if(!move_arm_elbow_flag && !move_end_effector_flag)
+    {
+      done_moving_arm_msg.data = true;
+      done_moving_arm_pub.publish(&done_moving_arm_msg);
+    }
+  }
+  else if(arm_turntable_degree_error < 0)
+  {
+    current_arm_turntable_degree--;
+    arm_turntable_servo.write(current_arm_turntable_degree);
+  }
+  else
+  {
+    current_arm_turntable_degree++;
+    arm_turntable_servo.write(current_arm_turntable_degree);
   }
 }
 
 void moveArmElbow()
 {
-  arm_elbow_servo.write(desired_arm_elbow_degree);
-  current_arm_elbow_degree = desired_arm_elbow_degree;
-  move_arm_elbow_flag = false;
+  int arm_elbow_degree_error = desired_arm_elbow_degree - current_arm_elbow_degree;
 
-  if(!turn_arm_turntable_flag && !move_end_effector_flag)
+  if(arm_elbow_degree_error == 0)
   {
-    done_moving_arm_msg.data = true;
-    done_moving_arm_pub.publish(&done_moving_arm_msg);
+    move_arm_elbow_flag = false;
+
+    if(!turn_arm_turntable_flag && !move_end_effector_flag)
+    {
+      done_moving_arm_msg.data = true;
+      done_moving_arm_pub.publish(&done_moving_arm_msg);
+    }
+  }
+  else if(arm_elbow_degree_error < 0)
+  {
+    current_arm_elbow_degree--;
+    arm_elbow_servo.write(current_arm_elbow_degree);
+  }
+  else
+  {
+    current_arm_elbow_degree++;
+    arm_elbow_servo.write(current_arm_elbow_degree);
   }
 }
 
 void moveEndEffector()
 {
+  
   end_effector_servo.write(desired_end_effector_degree);
   current_end_effector_degree = desired_end_effector_degree;
   move_end_effector_flag = false;
