@@ -81,7 +81,7 @@ float current_x_gantry_position = 0.0;
 long x_gantry_step_count = 0;
 const int num_x_gantry_steps_from_limit_switch = 300;
 const int x_gantry_step_interval = 300;
-const int x_gantry_step_time = 300;
+const int x_gantry_step_time = 1000;
 const int x_gantry_steps_per_revolution = 400;
 const float x_gantry_distance_per_revolution = 0.005; // 5 mm pitch
 const float x_gantry_length = 1.27; // 1.27m or 50"
@@ -93,7 +93,7 @@ float current_y_gantry_position = 0.0;
 long y_gantry_step_count = 0;
 const int num_y_gantry_steps_from_limit_switch = 300;
 const int y_gantry_step_interval = 300;
-const int y_gantry_step_time = 300;
+const int y_gantry_step_time = 1000;
 const int y_gantry_steps_per_revolution = 400;
 const float y_gantry_distance_per_revolution = 0.005; // 5 mm pitch
 const float y_gantry_length = 0.8382; // 0.8382m or 33"
@@ -105,7 +105,7 @@ float current_z_gantry_position = 0.0;
 long z_gantry_step_count = 0;
 const int num_z_gantry_steps_from_limit_switch = 300;
 const int z_gantry_step_interval = 300;
-const int z_gantry_step_time = 300;
+const int z_gantry_step_time = 1000;
 const int z_gantry_steps_per_revolution = 400;
 const float z_gantry_distance_per_revolution = 0.005; // 5 mm pitch
 const float z_gantry_length = 0.4064; // 0.4064m or 16"
@@ -139,12 +139,12 @@ void electromagnetSwitchCallback(const std_msgs::Bool& electromagnet_switch_msg)
   // If the electromagnet_switch_msg contains true, turn on the electromagnet
   if(electromagnet_switch_msg.data)
   {
-    digitalWrite(ElectromagnetRelay, HIGH);
+    digitalWrite(ElectromagnetRelay, LOW);
   }
   // Otherwise turn off the electromagnet
   else
   {
-    digitalWrite(ElectromagnetRelay, LOW);
+    digitalWrite(ElectromagnetRelay, HIGH);
   }
   electromagnet_status_msg.data = electromagnet_switch_msg.data;
   electromagnet_status_pub.publish(&electromagnet_status_msg);
@@ -373,6 +373,9 @@ void setup()
   digitalWrite(YGantryStepperEnable, LOW);
   digitalWrite(ZGantryStepperEnable, LOW);
 
+  // Turn off the electromagnet initially by setting the pin to high
+  digitalWrite(ElectromagnetRelay, HIGH);
+
   // ROS Serial Initialization Code
 
   // Initialize Node
@@ -440,8 +443,8 @@ void homeXGantry()
 {
   int num_steps = 0;
 
-  digitalWrite(XGantryStepper1Direction, LOW);
-  digitalWrite(XGantryStepper2Direction, LOW);
+  digitalWrite(XGantryStepper1Direction, HIGH);
+  digitalWrite(XGantryStepper2Direction, HIGH);
 
   while(num_steps < x_gantry_step_interval && digitalRead(XAxisLimitSwitch1) != 0 && digitalRead(XAxisLimitSwitch2) != 0)
   {
@@ -496,8 +499,8 @@ void homeXGantry()
 // moving the X Gantry out until the limit switch is no longer clicked.
 void XGantryCalibrationSequence()
 {
-  digitalWrite(XGantryStepper1Direction, HIGH);
-  digitalWrite(XGantryStepper2Direction, HIGH);
+  digitalWrite(XGantryStepper1Direction, LOW);
+  digitalWrite(XGantryStepper2Direction, LOW);
 
   while (digitalRead(XAxisLimitSwitch1) != 1 && digitalRead(XAxisLimitSwitch2) != 1)
   {
@@ -516,14 +519,14 @@ void XGantryCalibrationSequence()
    digitalWrite(XGantryStepper2Pulse, LOW);
 
    delayMicroseconds(x_gantry_step_time);
-  }
+  } 
 }
 
 void homeYGantry()
 {
   int num_steps = 0;
 
-  digitalWrite(YGantryStepperDirection, LOW);
+  digitalWrite(YGantryStepperDirection, HIGH);
 
   while(num_steps < y_gantry_step_interval && digitalRead(YAxisLimitSwitch) != 0)
   {
@@ -555,7 +558,7 @@ void homeYGantry()
 // moving the Y Gantry out until the limit switch is no longer clicked.
 void YGantryCalibrationSequence()
 {
-  digitalWrite(YGantryStepperDirection, HIGH);
+  digitalWrite(YGantryStepperDirection, LOW);
   while (digitalRead(YAxisLimitSwitch) != 1)
   {
    digitalWrite(YGantryStepperPulse, HIGH);
@@ -576,7 +579,7 @@ void homeZGantry()
 {
   int num_steps = 0;
 
-  digitalWrite(ZGantryStepperDirection, LOW);
+  digitalWrite(ZGantryStepperDirection, HIGH);
 
   while(num_steps < z_gantry_step_interval && digitalRead(ZAxisLimitSwitch) != 0)
   {
@@ -608,7 +611,7 @@ void homeZGantry()
 // moving the Z Gantry out until the limit switch is no longer clicked.
 void ZGantryCalibrationSequence()
 {
-  digitalWrite(ZGantryStepperDirection, HIGH);
+  digitalWrite(ZGantryStepperDirection, LOW);
   while (digitalRead(ZAxisLimitSwitch) != 1)
   {
    digitalWrite(ZGantryStepperPulse, HIGH);
@@ -715,8 +718,8 @@ void moveXGantry()
   if(num_x_gantry_steps > 0)
   {
     // Move X Gantry Forward
-    digitalWrite(XGantryStepper1Direction, HIGH);
-    digitalWrite(XGantryStepper2Direction, HIGH);
+    digitalWrite(XGantryStepper1Direction, LOW);
+    digitalWrite(XGantryStepper2Direction, LOW);
 
     for (long i = 0; i < min(x_gantry_step_interval, num_x_gantry_steps); i++)
     {         
@@ -740,8 +743,8 @@ void moveXGantry()
   else
   {
     // Move X Gantry Back
-    digitalWrite(XGantryStepper1Direction, LOW);
-    digitalWrite(XGantryStepper2Direction, LOW);
+    digitalWrite(XGantryStepper1Direction, HIGH);
+    digitalWrite(XGantryStepper2Direction, HIGH);
 
     for (long i = 0; i < min(x_gantry_step_interval, -num_x_gantry_steps); i++)
     {         
@@ -782,7 +785,7 @@ void moveYGantry()
   if(num_y_gantry_steps > 0)
   {
     // Move Y Gantry Forward
-    digitalWrite(YGantryStepperDirection, HIGH);
+    digitalWrite(YGantryStepperDirection, LOW);
 
     for (long i = 0; i < min(y_gantry_step_interval, num_y_gantry_steps); i++)
     {         
@@ -804,7 +807,7 @@ void moveYGantry()
   else
   {
     // Move Y Gantry Back
-    digitalWrite(YGantryStepperDirection, LOW);
+    digitalWrite(YGantryStepperDirection, HIGH);
 
     for (long i = 0; i < min(y_gantry_step_interval, -num_y_gantry_steps); i++)
     {         
@@ -843,7 +846,7 @@ void moveZGantry()
   if(num_z_gantry_steps > 0)
   {
     // Move Z Gantry Up
-    digitalWrite(ZGantryStepperDirection, LOW);
+    digitalWrite(ZGantryStepperDirection, HIGH);
 
     for (long i = 0; i < min(z_gantry_step_interval, num_z_gantry_steps); i++)
     {         
@@ -865,7 +868,7 @@ void moveZGantry()
   else
   {
     // Move Z Gantry Down
-    digitalWrite(ZGantryStepperDirection, HIGH);
+    digitalWrite(ZGantryStepperDirection, LOW);
 
     for (long i = 0; i < min(z_gantry_step_interval, -num_z_gantry_steps); i++)
     {         
