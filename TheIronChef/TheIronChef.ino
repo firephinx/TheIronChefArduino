@@ -315,7 +315,7 @@ void resetCallback(const std_msgs::Empty& reset_msg){
   desired_z_gantry_position = 0.0;
   desired_arm_turntable_degree = 90;
   desired_arm_elbow_degree = 0;
-  desired_end_effector_degree = 0;
+  desired_end_effector_degree = 70;
 }
 
 // Reset Command Subscriber
@@ -343,6 +343,9 @@ void setGantryCallback(const geometry_msgs::Point& set_gantry_msg){
   current_x_gantry_position = set_gantry_msg.x;
   current_y_gantry_position = set_gantry_msg.y;
   current_z_gantry_position = set_gantry_msg.z;
+  x_gantry_step_count = (long)((current_x_gantry_position / x_gantry_distance_per_revolution) * x_gantry_steps_per_revolution);
+  y_gantry_step_count = (long)((current_y_gantry_position / y_gantry_distance_per_revolution) * y_gantry_steps_per_revolution);
+  z_gantry_step_count = (long)((current_z_gantry_position / z_gantry_distance_per_revolution) * z_gantry_steps_per_revolution);
 }
 
 // Stay Command Subscriber
@@ -392,7 +395,7 @@ void setup()
   // Set the Servos to their default positions
   arm_turntable_servo.write(90);
   arm_elbow_servo.write(0);
-  end_effector_servo.write(0);
+  end_effector_servo.write(70);
 
   // ROS Serial Initialization Code
 
@@ -686,8 +689,8 @@ void homeArmElbow()
 
 void homeEndEffector()
 {
-  end_effector_servo.write(90);
-  current_end_effector_degree = 90;
+  end_effector_servo.write(70);
+  current_end_effector_degree = 70;
   home_end_effector_flag = false;
 }
 
