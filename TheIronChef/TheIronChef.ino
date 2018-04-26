@@ -75,7 +75,7 @@ float joint_state_positions[6];
 float joint_state_velocities[6];
 
 // Joint States Publisher
-ros::Publisher joint_states_pub("/TheBoatDoctor/joint_states", &joint_states_msg);
+ros::Publisher joint_states_pub("/TheIronChef/joint_states", &joint_states_msg);
 
 // X Gantry Globals
 float current_x_gantry_position = 0.0;
@@ -336,6 +336,18 @@ void stayCallback(const std_msgs::Empty& stay_msg){
 // Stay Command Subscriber
 ros::Subscriber<std_msgs::Empty> stay_sub("/TheIronChef/Stay", &stayCallback);
 
+// SET GANTRY COMMAND
+// Set Gantry Callback
+// Sets the robot's current gantry position to the ones sent in the message.
+void setGantryCallback(const geometry_msgs::Point& set_gantry_msg){
+  current_x_gantry_position = set_gantry_msg.x;
+  current_y_gantry_position = set_gantry_msg.y;
+  current_z_gantry_position = set_gantry_msg.z;
+}
+
+// Set Gantry Subscriber
+ros::Subscriber<geometry_msgs::Point> set_gantry_sub("/TheIronChef/SetGantry", &setGantryCallback);
+
 
 // SETUP CODE
 void setup()
@@ -400,6 +412,7 @@ void setup()
   nh.subscribe(home_sub);
   nh.subscribe(reset_sub);
   nh.subscribe(stay_sub);
+  nh.subscribe(set_gantry_sub);
   nh.subscribe(move_gantry_sub);
   nh.subscribe(move_arm_sub);
 
@@ -1149,11 +1162,11 @@ void moveEndEffector()
   else if(end_effector_degree_error < 0)
   {
     current_end_effector_degree--;
-    arm_elbow_servo.write(current_end_effector_degree);
+    end_effector_servo.write(current_end_effector_degree);
   }
   else
   {
     current_end_effector_degree++;
-    arm_elbow_servo.write(current_end_effector_degree);
+    end_effector_servo.write(current_end_effector_degree);
   }
 }
