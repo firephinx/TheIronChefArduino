@@ -33,14 +33,14 @@
 #define ZGantryStepperDirection 31
 #define YGantryStepperPulse 32
 #define ZGantryStepperPulse 33
-#define ArmTurntableServo 34 
-#define ArmElbowServo 35
+#define ArmTurntableServo 4 
+#define ArmElbowServo 3 
 #define EndEffectorServo 2
-#define ElectromagnetRelay 37
-#define XAxisLimitSwitch1 38
-#define XAxisLimitSwitch2 39
-#define YAxisLimitSwitch 40
-#define ZAxisLimitSwitch 41
+#define ElectromagnetRelay 5
+#define XAxisLimitSwitch1 48
+#define XAxisLimitSwitch2 49
+#define YAxisLimitSwitch 50
+#define ZAxisLimitSwitch 51
 //#define 42
 //#define 43
 //#define 44
@@ -345,7 +345,7 @@ void setGantryCallback(const geometry_msgs::Point& set_gantry_msg){
   current_z_gantry_position = set_gantry_msg.z;
 }
 
-// Set Gantry Subscriber
+// Stay Command Subscriber
 ros::Subscriber<geometry_msgs::Point> set_gantry_sub("/TheIronChef/SetGantry", &setGantryCallback);
 
 
