@@ -35,7 +35,7 @@
 #define ZGantryStepperPulse 33
 #define ArmTurntableServo 34 
 #define ArmElbowServo 35
-#define EndEffectorServo 36
+#define EndEffectorServo 2
 #define ElectromagnetRelay 37
 #define XAxisLimitSwitch1 38
 #define XAxisLimitSwitch2 39
@@ -72,6 +72,7 @@ ros::NodeHandle nh;
 sensor_msgs::JointState joint_states_msg;
 char *joint_names[] = {"X_Gantry", "Y_Gantry", "Z_Gantry", "Arm_Turntable", "Arm_Elbow", "End_Effector"};
 float joint_state_positions[6];
+float joint_state_velocities[6];
 
 // Joint States Publisher
 ros::Publisher joint_states_pub("/TheBoatDoctor/joint_states", &joint_states_msg);
@@ -81,7 +82,7 @@ float current_x_gantry_position = 0.0;
 long x_gantry_step_count = 0;
 const int num_x_gantry_steps_from_limit_switch = 300;
 const int x_gantry_step_interval = 300;
-const int x_gantry_step_time = 1500;
+const int x_gantry_step_time = 2000;
 const int x_gantry_steps_per_revolution = 400;
 const float x_gantry_distance_per_revolution = 0.005; // 5 mm pitch
 const float x_gantry_length = 1.27; // 1.27m or 50"
@@ -293,9 +294,9 @@ void moveArmCallback(const geometry_msgs::Point& move_arm_msg)
   }
   if(desired_end_effector_degree != current_end_effector_degree)
   {
-    desired_end_effector_degree = true;
+    move_end_effector_flag = true;
   }
-  if(!turn_arm_turntable_flag && !move_arm_elbow_flag && !desired_end_effector_degree)
+  if(!turn_arm_turntable_flag && !move_arm_elbow_flag && !move_end_effector_flag)
   {
     done_moving_arm_msg.data = true;
     done_moving_arm_pub.publish(&done_moving_arm_msg);
@@ -687,7 +688,12 @@ void publishJointStates()
   joint_state_positions[3] = (float)current_arm_turntable_degree;
   joint_state_positions[4] = (float)current_arm_elbow_degree;
   joint_state_positions[5] = (float)current_end_effector_degree;
+  joint_state_velocities[0] = (float) digitalRead(XAxisLimitSwitch1);
+  joint_state_velocities[1] = (float) digitalRead(XAxisLimitSwitch2);
+  joint_state_velocities[2] = (float) digitalRead(YAxisLimitSwitch);
+  joint_state_velocities[3] = (float) digitalRead(ZAxisLimitSwitch);
   joint_states_msg.position = joint_state_positions;
+  joint_states_msg.velocity = joint_state_velocities;
   joint_states_pub.publish(&joint_states_msg);
 }
 
@@ -1128,14 +1134,26 @@ void moveArmElbow()
 
 void moveEndEffector()
 {
-  
-  end_effector_servo.write(desired_end_effector_degree);
-  current_end_effector_degree = desired_end_effector_degree;
-  move_end_effector_flag = false;
+  int end_effector_degree_error = desired_end_effector_degree - current_end_effector_degree;
 
-  if(!turn_arm_turntable_flag && !move_arm_elbow_flag)
+  if(end_effector_degree_error == 0)
   {
-    done_moving_arm_msg.data = true;
-    done_moving_arm_pub.publish(&done_moving_arm_msg);
+    move_end_effector_flag = false;
+
+    if(!turn_arm_turntable_flag && !move_arm_elbow_flag)
+    {
+      done_moving_arm_msg.data = true;
+      done_moving_arm_pub.publish(&done_moving_arm_msg);
+    }
+  }
+  else if(end_effector_degree_error < 0)
+  {
+    current_end_effector_degree--;
+    arm_elbow_servo.write(current_end_effector_degree);
+  }
+  else
+  {
+    current_end_effector_degree++;
+    arm_elbow_servo.write(current_end_effector_degree);
   }
 }
