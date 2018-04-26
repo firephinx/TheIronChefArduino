@@ -73,6 +73,7 @@ sensor_msgs::JointState joint_states_msg;
 char *joint_names[] = {"X_Gantry", "Y_Gantry", "Z_Gantry", "Arm_Turntable", "Arm_Elbow", "End_Effector"};
 float joint_state_positions[6];
 float joint_state_velocities[6];
+float joint_state_efforts[6];
 
 // Joint States Publisher
 ros::Publisher joint_states_pub("/TheIronChef/joint_states", &joint_states_msg);
@@ -221,6 +222,33 @@ void homeCallback(const std_msgs::Empty& home_msg){
 
 // Home Command Subscriber
 ros::Subscriber<std_msgs::Empty> home_sub("/TheIronChef/Home", &homeCallback);
+
+// Home X Gantry Command Callback
+// Homes the X Gantry by setting the x_gantry_flag to true
+void homeXGantryCallback(const std_msgs::Empty& home_x_gantry_msg){
+  home_x_gantry_flag = true;
+}
+
+// Home X Gantry Command Subscriber
+ros::Subscriber<std_msgs::Empty> home_x_gantry_sub("/TheIronChef/HomeXGantry", &homeXGantryCallback);
+
+// Home Y Gantry Command Callback
+// Homes the Y Gantry by setting the y_gantry_flag to true
+void homeYGantryCallback(const std_msgs::Empty& home_y_gantry_msg){
+  home_y_gantry_flag = true;
+}
+
+// Home Y Gantry Command Subscriber
+ros::Subscriber<std_msgs::Empty> home_y_gantry_sub("/TheIronChef/HomeYGantry", &homeYGantryCallback);
+
+// Home Z Gantry Command Callback
+// Homes the Z Gantry by setting the z_gantry_flag to true
+void homeZGantryCallback(const std_msgs::Empty& home_z_gantry_msg){
+  home_z_gantry_flag = true;
+}
+
+// Home Y Gantry Command Subscriber
+ros::Subscriber<std_msgs::Empty> home_z_gantry_sub("/TheIronChef/HomeZGantry", &homeZGantryCallback);
 
 // MOVE GANTRY
 // Move Gantry Globals
@@ -413,6 +441,9 @@ void setup()
   nh.subscribe(electromagnet_switch_sub);
   nh.subscribe(stop_sub);
   nh.subscribe(home_sub);
+  nh.subscribe(home_x_gantry_sub);
+  nh.subscribe(home_y_gantry_sub);
+  nh.subscribe(home_z_gantry_sub);
   nh.subscribe(reset_sub);
   nh.subscribe(stay_sub);
   nh.subscribe(set_gantry_sub);
@@ -433,31 +464,53 @@ bool determineHoming()
           home_arm_turntable_flag || home_arm_elbow_flag || home_end_effector_flag);
 }
 
+bool checkIfDoneHoming()
+{
+  bool determine_homing = determineHoming();
+  if(determine_homing == false)
+  {
+    done_homing_msg.data = true;
+    done_homing_pub.publish(&done_homing_msg);
+    done_homing_pub.publish(&done_homing_msg);
+    return true;
+  }
+  else
+  {
+    return false;
+  }
+}
+
 void home()
 {
   if(home_x_gantry_flag)
   {
     homeXGantry();
+    checkIfDoneHoming();
   }
   else if(home_y_gantry_flag)
   {
     homeYGantry();
+    checkIfDoneHoming();
   }
   else if(home_z_gantry_flag)
   {
     homeZGantry();
+    checkIfDoneHoming();
   }
   else if(home_arm_turntable_flag)
   {
     homeArmTurntable();
+    checkIfDoneHoming();
   }
   else if(home_arm_elbow_flag)
   {
     homeArmElbow();
+    checkIfDoneHoming();
   }
   else if(home_end_effector_flag)
   {
     homeEndEffector();
+    checkIfDoneHoming();
   }
 }
 
@@ -708,6 +761,9 @@ void publishJointStates()
   joint_state_velocities[1] = (float) digitalRead(XAxisLimitSwitch2);
   joint_state_velocities[2] = (float) digitalRead(YAxisLimitSwitch);
   joint_state_velocities[3] = (float) digitalRead(ZAxisLimitSwitch);
+  joint_state_efforts[0] = (float) x_gantry_step_count;
+  joint_state_efforts[1] = (float) y_gantry_step_count;
+  joint_state_efforts[2] = (float) z_gantry_step_count;
   joint_states_msg.position = joint_state_positions;
   joint_states_msg.velocity = joint_state_velocities;
   joint_states_pub.publish(&joint_states_msg);
@@ -780,7 +836,7 @@ void moveXGantry()
       // Check to see if the X Axis Limit Switches were hit
       if(digitalRead(XAxisLimitSwitch1) == 0 || digitalRead(XAxisLimitSwitch2) == 0)
       { 
-        if(digitalRead(XAxisLimitSwitch1) == 0 && digitalRead(XAxisLimitSwitch2) == 0)
+/*        if(digitalRead(XAxisLimitSwitch1) == 0 && digitalRead(XAxisLimitSwitch2) == 0)
         {
         }
         else if(digitalRead(XAxisLimitSwitch1) == 0)
@@ -807,7 +863,7 @@ void moveXGantry()
         XGantryCalibrationSequence();
       
         // Set the x_gantry_step_count to 0
-        x_gantry_step_count = 0;
+        x_gantry_step_count = 0;*/
       
         current_x_gantry_position = ((float)(x_gantry_step_count) / x_gantry_steps_per_revolution) * x_gantry_distance_per_revolution;
         move_x_gantry_flag = false;
@@ -850,7 +906,7 @@ void moveXGantry()
       // Check to see if the X Axis Limit Switches were hit
       if(digitalRead(XAxisLimitSwitch1) == 0 || digitalRead(XAxisLimitSwitch2) == 0)
       { 
-        if(digitalRead(XAxisLimitSwitch1) == 0 && digitalRead(XAxisLimitSwitch2) == 0)
+/*        if(digitalRead(XAxisLimitSwitch1) == 0 && digitalRead(XAxisLimitSwitch2) == 0)
         {
         }
         else if(digitalRead(XAxisLimitSwitch1) == 0)
@@ -877,7 +933,7 @@ void moveXGantry()
         XGantryCalibrationSequence();
       
         // Set the x_gantry_step_count to 0
-        x_gantry_step_count = 0;
+        x_gantry_step_count = 0;*/
       
         current_x_gantry_position = ((float)(x_gantry_step_count) / x_gantry_steps_per_revolution) * x_gantry_distance_per_revolution;
         move_x_gantry_flag = false;
@@ -940,11 +996,11 @@ void moveYGantry()
     {         
       if(digitalRead(YAxisLimitSwitch) == 0)
       {         
-        // Conduct the Y Gantry Calibration Sequence
+/*        // Conduct the Y Gantry Calibration Sequence
         YGantryCalibrationSequence();
     
         // Set the y_gantry_step_count to 0
-        y_gantry_step_count = 0;
+        y_gantry_step_count = 0;*/
 
         current_y_gantry_position = ((float)(y_gantry_step_count) / y_gantry_steps_per_revolution) * y_gantry_distance_per_revolution;
         move_y_gantry_flag = false;
@@ -980,11 +1036,11 @@ void moveYGantry()
     { 
       if(digitalRead(YAxisLimitSwitch) == 0)
       {         
-        // Conduct the Y Gantry Calibration Sequence
+/*        // Conduct the Y Gantry Calibration Sequence
         YGantryCalibrationSequence();
     
         // Set the y_gantry_step_count to 0
-        y_gantry_step_count = 0;
+        y_gantry_step_count = 0;*/
 
         current_y_gantry_position = ((float)(y_gantry_step_count) / y_gantry_steps_per_revolution) * y_gantry_distance_per_revolution;
         move_y_gantry_flag = false;
@@ -1035,11 +1091,28 @@ void moveZGantry()
 
   if(num_z_gantry_steps > 0)
   {
-    // Move Z Gantry Up
+    // Move Z Gantry Down
     digitalWrite(ZGantryStepperDirection, LOW);
 
     for (long i = 0; i < min(z_gantry_step_interval, num_z_gantry_steps); i++)
-    {         
+    { 
+      // Check to see if the Z Axis Limit Switch was hit
+      if(digitalRead(ZAxisLimitSwitch) == 0)
+      {         
+/*        // Conduct the Z Gantry Calibration Sequence
+        ZGantryCalibrationSequence();
+        
+        // Set the z_gantry_step_count to 0
+        z_gantry_step_count = 0;*/
+
+        current_z_gantry_position = ((float)(z_gantry_step_count) / z_gantry_steps_per_revolution) * z_gantry_distance_per_revolution;
+        move_z_gantry_flag = false;
+        done_moving_gantry_msg.data = false;
+        done_moving_gantry_pub.publish(&done_moving_gantry_msg);
+        // Disable Z Gantry Stepper
+        digitalWrite(ZGantryStepperEnable, HIGH);
+        return;
+      }        
       if(z_gantry_step_count >= max_z_gantry_steps)
       {
         current_z_gantry_position = ((float)(z_gantry_step_count) / z_gantry_steps_per_revolution) * z_gantry_distance_per_revolution;
@@ -1059,11 +1132,28 @@ void moveZGantry()
   }
   else
   {
-    // Move Z Gantry Down
+    // Move Z Gantry Up
     digitalWrite(ZGantryStepperDirection, HIGH);
 
     for (long i = 0; i < min(z_gantry_step_interval, -num_z_gantry_steps); i++)
-    {         
+    { 
+      // Check to see if the Z Axis Limit Switch was hit
+      if(digitalRead(ZAxisLimitSwitch) == 0)
+      {         
+/*        // Conduct the Z Gantry Calibration Sequence
+        ZGantryCalibrationSequence();
+        
+        // Set the z_gantry_step_count to 0
+        z_gantry_step_count = 0;*/
+
+        current_z_gantry_position = ((float)(z_gantry_step_count) / z_gantry_steps_per_revolution) * z_gantry_distance_per_revolution;
+        move_z_gantry_flag = false;
+        done_moving_gantry_msg.data = false;
+        done_moving_gantry_pub.publish(&done_moving_gantry_msg);
+        // Disable Z Gantry Stepper
+        digitalWrite(ZGantryStepperEnable, HIGH);
+        return;
+      }          
       if(z_gantry_step_count == 0)
       {
         current_z_gantry_position = 0.0;
