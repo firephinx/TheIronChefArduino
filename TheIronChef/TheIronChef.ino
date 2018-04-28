@@ -1,9 +1,10 @@
 // ARDUINO MEGA PIN LAYOUT DEFINES
 //#define 0
 //#define 1
-//#define 2 // Interrupt Pin
-//#define 3 // Interrupt Pin
-//#define 4 // PWM Pin
+#define EndEffectorServo 2 // Interrupt Pin
+#define ArmElbowServo 3 // Interrupt Pin
+#define ArmTurntableServo 4 // PWM Pin
+#define ElectromagnetRelay 5 // PWM Pin
 //#define 5 // PWM Pin
 //#define 6 // PWM Pin
 //#define 7 // PWM Pin
@@ -33,24 +34,24 @@
 #define ZGantryStepperDirection 31
 #define YGantryStepperPulse 32
 #define ZGantryStepperPulse 33
-#define ArmTurntableServo 4 
-#define ArmElbowServo 3 
-#define EndEffectorServo 2
-#define ElectromagnetRelay 5
-#define XAxisLimitSwitch1 48
-#define XAxisLimitSwitch2 49
-#define YAxisLimitSwitch 50
-#define ZAxisLimitSwitch 51
+//#define 34
+//#define 35
+//#define 36
+//#define 37
+//#define 38
+//#define 39
+//#define 40
+//#define 41
 //#define 42
 //#define 43
 //#define 44
 //#define 45
 //#define 46
 //#define 47
-//#define 48
-//#define 49
-//#define 50 // MISO
-//#define 51 // MOSI
+#define XAxisLimitSwitch1 48
+#define XAxisLimitSwitch2 49
+#define YAxisLimitSwitch 50 // MISO
+#define ZAxisLimitSwitch 51 // MOSI
 //#define 52 // SCK
 //#define 53 // SS
 
@@ -115,15 +116,18 @@ const long max_z_gantry_steps = (long)(z_gantry_length / z_gantry_distance_per_r
 const float z_gantry_threshold = z_gantry_distance_per_revolution / z_gantry_steps_per_revolution;
 
 // Arm Turntable Globals
-int current_arm_turntable_degree = 90;
+const int default_arm_turntable_degree = 90;
+int current_arm_turntable_degree = default_arm_turntable_degree;
 Servo arm_turntable_servo;
 
 // Arm Elbow Globals
-int current_arm_elbow_degree = 0;
+const int default_arm_elbow_degree = 6;
+int current_arm_elbow_degree = default_arm_elbow_degree;
 Servo arm_elbow_servo;
 
 // End Effector Globals
-int current_end_effector_degree = 0;
+const int default_end_effector_degree = 70;
+int current_end_effector_degree = default_end_effector_degree;
 Servo end_effector_servo;
 
 // ROS Callback Functions and Subscribers
@@ -149,6 +153,8 @@ void electromagnetSwitchCallback(const std_msgs::Bool& electromagnet_switch_msg)
     digitalWrite(ElectromagnetRelay, HIGH);
   }
   electromagnet_status_msg.data = electromagnet_switch_msg.data;
+  
+  electromagnet_status_pub.publish(&electromagnet_status_msg);
   electromagnet_status_pub.publish(&electromagnet_status_msg);
 }
 
@@ -223,6 +229,28 @@ void homeCallback(const std_msgs::Empty& home_msg){
 // Home Command Subscriber
 ros::Subscriber<std_msgs::Empty> home_sub("/TheIronChef/Home", &homeCallback);
 
+// Home Arm Command Callback
+// Returns the robot arm to the home position by setting the home arm flags to true
+void homeArmCallback(const std_msgs::Empty& home_arm_msg){
+  home_arm_turntable_flag = true;
+  home_arm_elbow_flag = true;
+  home_end_effector_flag = true;
+}
+
+// Home Arm Command Subscriber
+ros::Subscriber<std_msgs::Empty> home_arm_sub("/TheIronChef/HomeArm", &homeArmCallback);
+
+// Home Gantry Command Callback
+// Returns the gantry to the home position by setting the home gantry flags to true
+void homeGantryCallback(const std_msgs::Empty& home_arm_msg){
+  home_x_gantry_flag = true;
+  home_y_gantry_flag = true;
+  home_z_gantry_flag = true;
+}
+
+// Home Gantry Command Subscriber
+ros::Subscriber<std_msgs::Empty> home_gantry_sub("/TheIronChef/HomeGantry", &homeGantryCallback);
+
 // Home X Gantry Command Callback
 // Homes the X Gantry by setting the x_gantry_flag to true
 void homeXGantryCallback(const std_msgs::Empty& home_x_gantry_msg){
@@ -247,7 +275,7 @@ void homeZGantryCallback(const std_msgs::Empty& home_z_gantry_msg){
   home_z_gantry_flag = true;
 }
 
-// Home Y Gantry Command Subscriber
+// Home Z Gantry Command Subscriber
 ros::Subscriber<std_msgs::Empty> home_z_gantry_sub("/TheIronChef/HomeZGantry", &homeZGantryCallback);
 
 // MOVE GANTRY
@@ -341,8 +369,8 @@ void resetCallback(const std_msgs::Empty& reset_msg){
   desired_x_gantry_position = 0.0;
   desired_y_gantry_position = 0.0;
   desired_z_gantry_position = 0.0;
-  desired_arm_turntable_degree = 90;
-  desired_arm_elbow_degree = 0;
+  desired_arm_turntable_degree = default_arm_turntable_degree;
+  desired_arm_elbow_degree = default_arm_elbow_degree;
   desired_end_effector_degree = 70;
 }
 
@@ -421,9 +449,9 @@ void setup()
   digitalWrite(ElectromagnetRelay, HIGH);
 
   // Set the Servos to their default positions
-  arm_turntable_servo.write(90);
-  arm_elbow_servo.write(0);
-  end_effector_servo.write(70);
+  arm_turntable_servo.write(default_arm_turntable_degree);
+  arm_elbow_servo.write(default_arm_elbow_degree);
+  end_effector_servo.write(desired_end_effector_degree);
 
   // ROS Serial Initialization Code
 
@@ -436,14 +464,12 @@ void setup()
   nh.advertise(done_homing_pub);
   nh.advertise(done_moving_gantry_pub);
   nh.advertise(done_moving_arm_pub);
+  
 
   // Subscribe to topics
   nh.subscribe(electromagnet_switch_sub);
   nh.subscribe(stop_sub);
   nh.subscribe(home_sub);
-  nh.subscribe(home_x_gantry_sub);
-  nh.subscribe(home_y_gantry_sub);
-  nh.subscribe(home_z_gantry_sub);
   nh.subscribe(reset_sub);
   nh.subscribe(stay_sub);
   nh.subscribe(set_gantry_sub);
@@ -464,19 +490,14 @@ bool determineHoming()
           home_arm_turntable_flag || home_arm_elbow_flag || home_end_effector_flag);
 }
 
-bool checkIfDoneHoming()
+void checkIfDoneHoming()
 {
-  bool determine_homing = determineHoming();
-  if(determine_homing == false)
+  bool homing_flag = determineHoming();
+  if(homing_flag == false)
   {
     done_homing_msg.data = true;
     done_homing_pub.publish(&done_homing_msg);
     done_homing_pub.publish(&done_homing_msg);
-    return true;
-  }
-  else
-  {
-    return false;
   }
 }
 
@@ -728,22 +749,22 @@ void ZGantryCalibrationSequence()
 
 void homeArmTurntable()
 {
-  arm_turntable_servo.write(90);
-  current_arm_turntable_degree = 90;
+  arm_turntable_servo.write(default_arm_turntable_degree);
+  current_arm_turntable_degree = default_arm_turntable_degree;
   home_arm_turntable_flag = false;
 }
 
 void homeArmElbow()
 {
-  arm_elbow_servo.write(0);
-  current_arm_elbow_degree = 0;
+  arm_elbow_servo.write(default_arm_elbow_degree);
+  current_arm_elbow_degree = default_arm_elbow_degree;
   home_arm_elbow_flag = false;
 }
 
 void homeEndEffector()
 {
-  end_effector_servo.write(70);
-  current_end_effector_degree = 70;
+  end_effector_servo.write(desired_end_effector_degree);
+  current_end_effector_degree = desired_end_effector_degree;
   home_end_effector_flag = false;
 }
 
@@ -769,6 +790,30 @@ void publishJointStates()
   joint_states_pub.publish(&joint_states_msg);
 }
 
+void checkIfDoneMovingGantry()
+{
+  bool moving_gantry_flag = (move_x_gantry_flag || move_y_gantry_flag || move_z_gantry_flag);
+  
+  if(moving_gantry_flag == false)
+  {
+    done_moving_gantry_msg.data = true;
+    done_moving_gantry_pub.publish(&done_moving_gantry_msg);
+    done_moving_gantry_pub.publish(&done_moving_gantry_msg);
+  }
+}
+
+void checkIfDoneMovingArm()
+{
+  bool moving_arm_flag = (turn_arm_turntable_flag || move_arm_elbow_flag || move_end_effector_flag);
+  
+  if(moving_arm_flag == false)
+  {
+    done_moving_arm_msg.data = true;
+    done_moving_arm_pub.publish(&done_moving_arm_msg);
+    done_moving_arm_pub.publish(&done_moving_arm_msg);
+  }
+}
+
 // LOOP CODE
 void loop()
 {
@@ -786,27 +831,33 @@ void loop()
         if(move_x_gantry_flag)
         {
           moveXGantry();
+          checkIfDoneMovingGantry();
         } 
         if(move_y_gantry_flag)
         {
           moveYGantry();
+          checkIfDoneMovingGantry();
         }
         if(move_z_gantry_flag)
         {
           moveZGantry();
+          checkIfDoneMovingGantry();
         }
       }
       else if(turn_arm_turntable_flag)
       {
         turnArmTurntable();
+        checkIfDoneMovingArm();
       }
       else if(move_arm_elbow_flag)
       {
         moveArmElbow();
+        checkIfDoneMovingArm();
       }
       else if(move_end_effector_flag)
       {
         moveEndEffector();
+        checkIfDoneMovingArm();
       }
     }
   }
@@ -972,11 +1023,6 @@ void moveXGantry()
     // Disable X Gantry Steppers
     digitalWrite(XGantryStepper1Enable, HIGH);
     digitalWrite(XGantryStepper2Enable, HIGH);
-    if(!move_y_gantry_flag && !move_z_gantry_flag)
-    {
-      done_moving_gantry_msg.data = true;
-      done_moving_gantry_pub.publish(&done_moving_gantry_msg);
-    }
   }
 }
 
@@ -1074,11 +1120,6 @@ void moveYGantry()
     move_y_gantry_flag = false;
     // Disable Y Gantry Stepper
     digitalWrite(YGantryStepperEnable, HIGH);
-    if(!move_x_gantry_flag && !move_z_gantry_flag)
-    {
-      done_moving_gantry_msg.data = true;
-      done_moving_gantry_pub.publish(&done_moving_gantry_msg);
-    }
   }
 }
 
@@ -1178,11 +1219,6 @@ void moveZGantry()
     move_z_gantry_flag = false;
     // Disable Z Gantry Stepper
     digitalWrite(ZGantryStepperEnable, HIGH);
-    if(!move_x_gantry_flag && !move_y_gantry_flag)
-    {
-      done_moving_gantry_msg.data = true;
-      done_moving_gantry_pub.publish(&done_moving_gantry_msg);
-    }
   }
 }
 
@@ -1193,12 +1229,6 @@ void turnArmTurntable()
   if(arm_turntable_degree_error == 0)
   {
     turn_arm_turntable_flag = false;
-
-    if(!move_arm_elbow_flag && !move_end_effector_flag)
-    {
-      done_moving_arm_msg.data = true;
-      done_moving_arm_pub.publish(&done_moving_arm_msg);
-    }
   }
   else if(arm_turntable_degree_error < 0)
   {
@@ -1219,12 +1249,6 @@ void moveArmElbow()
   if(arm_elbow_degree_error == 0)
   {
     move_arm_elbow_flag = false;
-
-    if(!turn_arm_turntable_flag && !move_end_effector_flag)
-    {
-      done_moving_arm_msg.data = true;
-      done_moving_arm_pub.publish(&done_moving_arm_msg);
-    }
   }
   else if(arm_elbow_degree_error < 0)
   {
@@ -1245,12 +1269,6 @@ void moveEndEffector()
   if(end_effector_degree_error == 0)
   {
     move_end_effector_flag = false;
-
-    if(!turn_arm_turntable_flag && !move_arm_elbow_flag)
-    {
-      done_moving_arm_msg.data = true;
-      done_moving_arm_pub.publish(&done_moving_arm_msg);
-    }
   }
   else if(end_effector_degree_error < 0)
   {
