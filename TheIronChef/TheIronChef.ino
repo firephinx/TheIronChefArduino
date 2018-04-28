@@ -833,12 +833,12 @@ void loop()
           moveXGantry();
           checkIfDoneMovingGantry();
         } 
-        if(move_y_gantry_flag)
+        else if(move_y_gantry_flag)
         {
           moveYGantry();
           checkIfDoneMovingGantry();
         }
-        if(move_z_gantry_flag)
+        else if(move_z_gantry_flag)
         {
           moveZGantry();
           checkIfDoneMovingGantry();
