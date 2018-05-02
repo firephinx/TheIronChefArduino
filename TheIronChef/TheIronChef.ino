@@ -379,7 +379,7 @@ void resetCallback(const std_msgs::Empty& reset_msg){
   desired_z_gantry_position = 0.0;
   desired_arm_turntable_degree = default_arm_turntable_degree;
   desired_arm_elbow_degree = default_arm_elbow_degree;
-  desired_end_effector_degree = 70;
+  desired_end_effector_degree = default_end_effector_degree;
 }
 
 // Reset Command Subscriber
@@ -478,7 +478,7 @@ void setup()
   // Set the Servos to their default positions
   arm_turntable_servo.write(default_arm_turntable_degree);
   arm_elbow_servo.write(default_arm_elbow_degree);
-  end_effector_servo.write(desired_end_effector_degree);
+  end_effector_servo.write(default_end_effector_degree);
 
   // ROS Serial Initialization Code
 
@@ -805,8 +805,8 @@ void homeArmElbow()
 
 void homeEndEffector()
 {
-  end_effector_servo.write(desired_end_effector_degree);
-  current_end_effector_degree = desired_end_effector_degree;
+  end_effector_servo.write(default_end_effector_degree);
+  current_end_effector_degree = default_end_effector_degree;
   home_end_effector_flag = false;
 }
 
