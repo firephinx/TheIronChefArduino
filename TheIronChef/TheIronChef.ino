@@ -1140,11 +1140,11 @@ void moveZGantry()
       // Check to see if the Z Axis Limit Switch was hit
       if(digitalRead(ZAxisLimitSwitch) == 0)
       {         
-/*        // Conduct the Z Gantry Calibration Sequence
+        // Conduct the Z Gantry Calibration Sequence
         ZGantryCalibrationSequence();
         
         // Set the z_gantry_step_count to 0
-        z_gantry_step_count = 0;*/
+        z_gantry_step_count = 0;
 
         current_z_gantry_position = ((float)(z_gantry_step_count) / z_gantry_steps_per_revolution) * z_gantry_distance_per_revolution;
         move_z_gantry_flag = false;
@@ -1181,11 +1181,11 @@ void moveZGantry()
       // Check to see if the Z Axis Limit Switch was hit
       if(digitalRead(ZAxisLimitSwitch) == 0)
       {         
-/*        // Conduct the Z Gantry Calibration Sequence
+        // Conduct the Z Gantry Calibration Sequence
         ZGantryCalibrationSequence();
         
         // Set the z_gantry_step_count to 0
-        z_gantry_step_count = 0;*/
+        z_gantry_step_count = 0;
 
         current_z_gantry_position = ((float)(z_gantry_step_count) / z_gantry_steps_per_revolution) * z_gantry_distance_per_revolution;
         move_z_gantry_flag = false;
