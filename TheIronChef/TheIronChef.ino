@@ -55,6 +55,8 @@
 //#define 52 // SCK
 //#define 53 // SS
 
+#define CONTINUOUS true
+
 #include <EEPROM.h>
 #include "EEPROMAnything.h"
 
@@ -94,42 +96,42 @@ ros::Publisher joint_states_pub("/TheIronChef/joint_states", &joint_states_msg);
 
 // X Gantry Globals
 const int num_x_gantry_steps_from_limit_switch = 300;
-const int x_gantry_step_interval = 300;
+const int x_gantry_step_interval = 1000;
 const int x_gantry_step_time = 2000;
 const int x_gantry_steps_per_revolution = 400;
 const float x_gantry_distance_per_revolution = 0.005; // 5 mm pitch
-const float x_gantry_length = 1.27; // 1.27m or 50"
+const float x_gantry_length = 1.1176; // 1.1176m or 44"
 const long max_x_gantry_steps = (long)(x_gantry_length / x_gantry_distance_per_revolution) * x_gantry_steps_per_revolution;
 const float x_gantry_threshold = x_gantry_distance_per_revolution / x_gantry_steps_per_revolution;
 
 // Y Gantry Globals
 const int num_y_gantry_steps_from_limit_switch = 300;
-const int y_gantry_step_interval = 300;
+const int y_gantry_step_interval = 1000;
 const int y_gantry_step_time = 1000;
 const int y_gantry_steps_per_revolution = 400;
 const float y_gantry_distance_per_revolution = 0.005; // 5 mm pitch
-const float y_gantry_length = 0.8382; // 0.8382m or 33"
+const float y_gantry_length = 0.762; // 0.762m or 30"
 const long max_y_gantry_steps = (long)(y_gantry_length / y_gantry_distance_per_revolution) * y_gantry_steps_per_revolution;
 const float y_gantry_threshold = y_gantry_distance_per_revolution / y_gantry_steps_per_revolution;
 
 // Z Gantry Globals
 
 const int num_z_gantry_steps_from_limit_switch = 300;
-const int z_gantry_step_interval = 300;
+const int z_gantry_step_interval = 1000;
 const int z_gantry_step_time = 1000;
 const int z_gantry_steps_per_revolution = 400;
 const float z_gantry_distance_per_revolution = 0.005; // 5 mm pitch
-const float z_gantry_length = 0.4064; // 0.4064m or 16"
+const float z_gantry_length = 0.3302; // 0.3302m or 13"
 const long max_z_gantry_steps = (long)(z_gantry_length / z_gantry_distance_per_revolution) * z_gantry_steps_per_revolution;
 const float z_gantry_threshold = z_gantry_distance_per_revolution / z_gantry_steps_per_revolution;
 
 // Arm Turntable Globals
-const int default_arm_turntable_degree = 90;
+const int default_arm_turntable_degree = 87;
 int current_arm_turntable_degree = default_arm_turntable_degree;
 Servo arm_turntable_servo;
 
 // Arm Elbow Globals
-const int default_arm_elbow_degree = 6;
+const int default_arm_elbow_degree = 87;
 int current_arm_elbow_degree = default_arm_elbow_degree;
 Servo arm_elbow_servo;
 
@@ -198,12 +200,6 @@ void stopCallback(const std_msgs::Bool& stop_msg){
   else
   {
     stop_flag = false;
-
-    // enable stepper motors by setting their enable lines to low
-    digitalWrite(XGantryStepper1Enable, LOW);
-    digitalWrite(XGantryStepper2Enable, LOW);
-    digitalWrite(YGantryStepperEnable, LOW);
-    digitalWrite(ZGantryStepperEnable, LOW);
   }
 }
 
@@ -476,9 +472,9 @@ void setup()
   digitalWrite(ElectromagnetRelay, HIGH);
 
   // Set the Servos to their default positions
-  arm_turntable_servo.write(default_arm_turntable_degree);
-  arm_elbow_servo.write(default_arm_elbow_degree);
-  end_effector_servo.write(default_end_effector_degree);
+  //arm_turntable_servo.write(default_arm_turntable_degree);
+  //arm_elbow_servo.write(default_arm_elbow_degree);
+  //end_effector_servo.write(default_end_effector_degree);
 
   // ROS Serial Initialization Code
 
@@ -497,6 +493,11 @@ void setup()
   nh.subscribe(electromagnet_switch_sub);
   nh.subscribe(stop_sub);
   nh.subscribe(home_sub);
+  nh.subscribe(home_arm_sub);
+  nh.subscribe(home_gantry_sub);
+  nh.subscribe(home_x_gantry_sub);
+  nh.subscribe(home_y_gantry_sub);
+  nh.subscribe(home_z_gantry_sub);
   nh.subscribe(reset_sub);
   nh.subscribe(stay_sub);
   nh.subscribe(set_gantry_sub);
@@ -530,9 +531,9 @@ void checkIfDoneHoming()
 
 void home()
 {
-  if(home_x_gantry_flag)
+  if(home_z_gantry_flag)
   {
-    homeXGantry();
+    homeZGantry();
     checkIfDoneHoming();
   }
   else if(home_y_gantry_flag)
@@ -540,9 +541,9 @@ void home()
     homeYGantry();
     checkIfDoneHoming();
   }
-  else if(home_z_gantry_flag)
+  else if(home_x_gantry_flag)
   {
-    homeZGantry();
+    homeXGantry();
     checkIfDoneHoming();
   }
   else if(home_arm_turntable_flag)
@@ -582,9 +583,6 @@ void homeXGantry()
     digitalWrite(XGantryStepper1Pulse, LOW);
     digitalWrite(XGantryStepper2Pulse, LOW);
     gantry_positions.x_gantry_step_count--;
-    gantry_positions.x_gantry_position = ((float)(gantry_positions.x_gantry_step_count) / x_gantry_steps_per_revolution) * x_gantry_distance_per_revolution;
-
-    EEPROM_writeAnything(0, gantry_positions);
 
     delayMicroseconds(x_gantry_step_time);
   }
@@ -674,9 +672,6 @@ void homeYGantry()
     digitalWrite(YGantryStepperPulse, HIGH);
     digitalWrite(YGantryStepperPulse, LOW);
     gantry_positions.y_gantry_step_count--;
-    gantry_positions.y_gantry_position = ((float)(gantry_positions.y_gantry_step_count) / y_gantry_steps_per_revolution) * y_gantry_distance_per_revolution;
-
-    EEPROM_writeAnything(0, gantry_positions);
 
     delayMicroseconds(y_gantry_step_time);
   }
@@ -739,9 +734,6 @@ void homeZGantry()
     digitalWrite(ZGantryStepperPulse, HIGH);
     digitalWrite(ZGantryStepperPulse, LOW);
     gantry_positions.z_gantry_step_count--;
-    gantry_positions.z_gantry_position = ((float)(gantry_positions.z_gantry_step_count) / z_gantry_steps_per_revolution) * z_gantry_distance_per_revolution;
-
-    EEPROM_writeAnything(0, gantry_positions);
 
     delayMicroseconds(z_gantry_step_time);
   }
@@ -910,6 +902,103 @@ void loop()
   delay(3);
 }
 
+#ifdef CONTINUOUS
+void moveXGantry()
+{
+  // Enable X Gantry Steppers
+  digitalWrite(XGantryStepper1Enable, LOW);
+  digitalWrite(XGantryStepper2Enable, LOW);
+  
+  long num_x_gantry_steps = (long)(((desired_x_gantry_position - gantry_positions.x_gantry_position) / x_gantry_distance_per_revolution) * x_gantry_steps_per_revolution);
+
+  if(num_x_gantry_steps > 0)
+  {
+    // Move X Gantry Forward
+    digitalWrite(XGantryStepper1Direction, LOW);
+    digitalWrite(XGantryStepper2Direction, LOW);
+
+    for (long i = 0; i < num_x_gantry_steps; i++)
+    {   
+      // Check to see if the X Axis Limit Switches were hit
+      if(digitalRead(XAxisLimitSwitch1) == 0 || digitalRead(XAxisLimitSwitch2) == 0)
+      { 
+        move_x_gantry_flag = false;
+        done_moving_gantry_msg.data = false;
+        done_moving_gantry_pub.publish(&done_moving_gantry_msg);
+        // Disable X Gantry Steppers
+        digitalWrite(XGantryStepper1Enable, HIGH);
+        digitalWrite(XGantryStepper2Enable, HIGH);
+        return;
+      }
+            
+      if(gantry_positions.x_gantry_step_count >= max_x_gantry_steps)
+      {
+        move_x_gantry_flag = false;
+        done_moving_gantry_msg.data = false;
+        done_moving_gantry_pub.publish(&done_moving_gantry_msg);
+        // Disable X Gantry Steppers
+        digitalWrite(XGantryStepper1Enable, HIGH);
+        digitalWrite(XGantryStepper2Enable, HIGH);
+        return;
+      }
+      digitalWrite(XGantryStepper1Pulse, HIGH);
+      digitalWrite(XGantryStepper2Pulse, HIGH);
+      digitalWrite(XGantryStepper1Pulse, LOW);
+      digitalWrite(XGantryStepper2Pulse, LOW);
+      gantry_positions.x_gantry_step_count++;
+
+      delayMicroseconds(x_gantry_step_time);
+    }
+  }
+  else
+  {
+    // Move X Gantry Back
+    digitalWrite(XGantryStepper1Direction, HIGH);
+    digitalWrite(XGantryStepper2Direction, HIGH);
+
+    for (long i = 0; i < -num_x_gantry_steps; i++)
+    { 
+      // Check to see if the X Axis Limit Switches were hit
+      if(digitalRead(XAxisLimitSwitch1) == 0 || digitalRead(XAxisLimitSwitch2) == 0)
+      { 
+        move_x_gantry_flag = false;
+        done_moving_gantry_msg.data = false;
+        done_moving_gantry_pub.publish(&done_moving_gantry_msg);
+        // Disable X Gantry Steppers
+        digitalWrite(XGantryStepper1Enable, HIGH);
+        digitalWrite(XGantryStepper2Enable, HIGH);
+        return;
+      }        
+      if(gantry_positions.x_gantry_step_count == 0)
+      {
+        move_x_gantry_flag = false;
+        done_moving_gantry_msg.data = false;
+        done_moving_gantry_pub.publish(&done_moving_gantry_msg);
+        // Disable X Gantry Steppers
+        digitalWrite(XGantryStepper1Enable, HIGH);
+        digitalWrite(XGantryStepper2Enable, HIGH);
+        return;
+      }
+      digitalWrite(XGantryStepper1Pulse, HIGH);
+      digitalWrite(XGantryStepper2Pulse, HIGH);
+      digitalWrite(XGantryStepper1Pulse, LOW);
+      digitalWrite(XGantryStepper2Pulse, LOW);
+      gantry_positions.x_gantry_step_count--;
+
+      delayMicroseconds(x_gantry_step_time);
+    }
+  }
+
+  gantry_positions.x_gantry_position = ((float)(gantry_positions.x_gantry_step_count) / x_gantry_steps_per_revolution) * x_gantry_distance_per_revolution;
+
+  EEPROM_writeAnything(0, gantry_positions);
+  
+  move_x_gantry_flag = false;
+  // Disable X Gantry Steppers
+  digitalWrite(XGantryStepper1Enable, HIGH);
+  digitalWrite(XGantryStepper2Enable, HIGH);
+}
+#else
 void moveXGantry()
 {
   // Enable X Gantry Steppers
@@ -982,9 +1071,6 @@ void moveXGantry()
       digitalWrite(XGantryStepper1Pulse, LOW);
       digitalWrite(XGantryStepper2Pulse, LOW);
       gantry_positions.x_gantry_step_count++;
-      gantry_positions.x_gantry_position = ((float)(gantry_positions.x_gantry_step_count) / x_gantry_steps_per_revolution) * x_gantry_distance_per_revolution;
-
-      EEPROM_writeAnything(0, gantry_positions);
 
       delayMicroseconds(x_gantry_step_time);
     }
@@ -1052,13 +1138,14 @@ void moveXGantry()
       digitalWrite(XGantryStepper1Pulse, LOW);
       digitalWrite(XGantryStepper2Pulse, LOW);
       gantry_positions.x_gantry_step_count--;
-      gantry_positions.x_gantry_position = ((float)(gantry_positions.x_gantry_step_count) / x_gantry_steps_per_revolution) * x_gantry_distance_per_revolution;
-        
-      EEPROM_writeAnything(0, gantry_positions);
 
       delayMicroseconds(x_gantry_step_time);
     }
   }
+
+  gantry_positions.x_gantry_position = ((float)(gantry_positions.x_gantry_step_count) / x_gantry_steps_per_revolution) * x_gantry_distance_per_revolution;
+
+  EEPROM_writeAnything(0, gantry_positions);
   
   if(abs(num_x_gantry_steps) <= x_gantry_step_interval)
   {
@@ -1068,7 +1155,89 @@ void moveXGantry()
     digitalWrite(XGantryStepper2Enable, HIGH);
   }
 }
+#endif
 
+#ifdef CONTINUOUS
+void moveYGantry()
+{
+  // Enable Y Gantry Stepper
+  digitalWrite(YGantryStepperEnable, LOW);
+  
+  long num_y_gantry_steps = (long)(((desired_y_gantry_position - gantry_positions.y_gantry_position) / y_gantry_distance_per_revolution) * y_gantry_steps_per_revolution);
+
+  if(num_y_gantry_steps > 0)
+  {
+    // Move Y Gantry Forward
+    digitalWrite(YGantryStepperDirection, LOW);
+
+    for (long i = 0; i < num_y_gantry_steps; i++)
+    {         
+      if(digitalRead(YAxisLimitSwitch) == 0)
+      {         
+        move_y_gantry_flag = false;
+        done_moving_gantry_msg.data = false;
+        done_moving_gantry_pub.publish(&done_moving_gantry_msg);
+        // Disable Y Gantry Stepper
+        digitalWrite(YGantryStepperEnable, HIGH);
+        return;
+      }
+      if(gantry_positions.y_gantry_step_count >= max_y_gantry_steps)
+      {
+        move_y_gantry_flag = false;
+        done_moving_gantry_msg.data = false;
+        done_moving_gantry_pub.publish(&done_moving_gantry_msg);
+        // Disable Y Gantry Stepper
+        digitalWrite(YGantryStepperEnable, HIGH);
+        return;
+      }
+      digitalWrite(YGantryStepperPulse, HIGH);
+      digitalWrite(YGantryStepperPulse, LOW);
+      gantry_positions.y_gantry_step_count++;
+
+      delayMicroseconds(y_gantry_step_time);
+    }
+  }
+  else
+  {
+    // Move Y Gantry Back
+    digitalWrite(YGantryStepperDirection, HIGH);
+
+    for (long i = 0; i < -num_y_gantry_steps; i++)
+    { 
+      if(digitalRead(YAxisLimitSwitch) == 0)
+      {         
+        move_y_gantry_flag = false;
+        done_moving_gantry_msg.data = false;
+        done_moving_gantry_pub.publish(&done_moving_gantry_msg);
+        // Disable Y Gantry Stepper
+        digitalWrite(YGantryStepperEnable, HIGH);
+        return;
+      }        
+      if(gantry_positions.y_gantry_step_count == 0)
+      {
+        move_y_gantry_flag = false;
+        done_moving_gantry_msg.data = false;
+        done_moving_gantry_pub.publish(&done_moving_gantry_msg);
+        // Disable Y Gantry Stepper
+        digitalWrite(YGantryStepperEnable, HIGH);
+        return;
+      }
+      digitalWrite(YGantryStepperPulse, HIGH);
+      digitalWrite(YGantryStepperPulse, LOW);
+      gantry_positions.y_gantry_step_count--;
+
+      delayMicroseconds(y_gantry_step_time);
+    }
+  }
+  gantry_positions.y_gantry_position = ((float)(gantry_positions.y_gantry_step_count) / y_gantry_steps_per_revolution) * y_gantry_distance_per_revolution;
+      
+  EEPROM_writeAnything(0, gantry_positions);
+  
+  move_y_gantry_flag = false;
+  // Disable Y Gantry Stepper
+  digitalWrite(YGantryStepperEnable, HIGH);
+}
+#else
 void moveYGantry()
 {
   // Enable Y Gantry Stepper
@@ -1110,9 +1279,6 @@ void moveYGantry()
       digitalWrite(YGantryStepperPulse, HIGH);
       digitalWrite(YGantryStepperPulse, LOW);
       gantry_positions.y_gantry_step_count++;
-      gantry_positions.y_gantry_position = ((float)(gantry_positions.y_gantry_step_count) / y_gantry_steps_per_revolution) * y_gantry_distance_per_revolution;
-      
-      EEPROM_writeAnything(0, gantry_positions);
 
       delayMicroseconds(y_gantry_step_time);
     }
@@ -1151,13 +1317,13 @@ void moveYGantry()
       digitalWrite(YGantryStepperPulse, HIGH);
       digitalWrite(YGantryStepperPulse, LOW);
       gantry_positions.y_gantry_step_count--;
-      gantry_positions.y_gantry_position = ((float)(gantry_positions.y_gantry_step_count) / y_gantry_steps_per_revolution) * y_gantry_distance_per_revolution;
-      
-      EEPROM_writeAnything(0, gantry_positions);
 
       delayMicroseconds(y_gantry_step_time);
     }
   }
+  gantry_positions.y_gantry_position = ((float)(gantry_positions.y_gantry_step_count) / y_gantry_steps_per_revolution) * y_gantry_distance_per_revolution;
+      
+  EEPROM_writeAnything(0, gantry_positions);
   
   if(abs(num_y_gantry_steps) <= y_gantry_step_interval)
   {
@@ -1166,7 +1332,111 @@ void moveYGantry()
     digitalWrite(YGantryStepperEnable, HIGH);
   }
 }
+#endif
 
+#ifdef CONTINUOUS
+void moveZGantry()
+{
+  // Enable Z Gantry Stepper
+  digitalWrite(ZGantryStepperEnable, LOW);
+  
+  long num_z_gantry_steps = (long)(((desired_z_gantry_position - gantry_positions.z_gantry_position) / z_gantry_distance_per_revolution) * z_gantry_steps_per_revolution);
+
+  if(num_z_gantry_steps > 0)
+  {
+    // Move Z Gantry Down
+    digitalWrite(ZGantryStepperDirection, LOW);
+
+    for (long i = 0; i < num_z_gantry_steps; i++)
+    { 
+      // Check to see if the Z Axis Limit Switch was hit
+      if(digitalRead(ZAxisLimitSwitch) == 0)
+      {         
+        // Conduct the Z Gantry Calibration Sequence
+        ZGantryCalibrationSequence();
+        
+        // Set the gantry_positions.z_gantry_step_count to 0
+        gantry_positions.z_gantry_step_count = 0;
+
+        gantry_positions.z_gantry_position = 0.0;
+
+        EEPROM_writeAnything(0, gantry_positions);
+
+        move_z_gantry_flag = false;
+        done_moving_gantry_msg.data = false;
+        done_moving_gantry_pub.publish(&done_moving_gantry_msg);
+        // Disable Z Gantry Stepper
+        digitalWrite(ZGantryStepperEnable, HIGH);
+        return;
+      }        
+      if(gantry_positions.z_gantry_step_count >= max_z_gantry_steps)
+      {
+        move_z_gantry_flag = false;
+        done_moving_gantry_msg.data = false;
+        done_moving_gantry_pub.publish(&done_moving_gantry_msg);
+        // Disable Z Gantry Stepper
+        digitalWrite(ZGantryStepperEnable, HIGH);
+        return;
+      }
+      digitalWrite(ZGantryStepperPulse, HIGH);
+      digitalWrite(ZGantryStepperPulse, LOW);
+      gantry_positions.z_gantry_step_count++;
+
+      delayMicroseconds(z_gantry_step_time);
+    }
+  }
+  else
+  {
+    // Move Z Gantry Up
+    digitalWrite(ZGantryStepperDirection, HIGH);
+
+    for (long i = 0; i < -num_z_gantry_steps; i++)
+    { 
+      // Check to see if the Z Axis Limit Switch was hit
+      if(digitalRead(ZAxisLimitSwitch) == 0)
+      {         
+        // Conduct the Z Gantry Calibration Sequence
+        ZGantryCalibrationSequence();
+        
+        // Set the gantry_positions.z_gantry_step_count to 0
+        gantry_positions.z_gantry_step_count = 0;
+
+        gantry_positions.z_gantry_position = 0.0;
+
+        EEPROM_writeAnything(0, gantry_positions);
+
+        move_z_gantry_flag = false;
+        done_moving_gantry_msg.data = false;
+        done_moving_gantry_pub.publish(&done_moving_gantry_msg);
+        // Disable Z Gantry Stepper
+        digitalWrite(ZGantryStepperEnable, HIGH);
+        return;
+      }          
+      if(gantry_positions.z_gantry_step_count == 0)
+      {
+        move_z_gantry_flag = false;
+        done_moving_gantry_msg.data = false;
+        done_moving_gantry_pub.publish(&done_moving_gantry_msg);
+        // Disable Z Gantry Stepper
+        digitalWrite(ZGantryStepperEnable, HIGH);
+        return;
+      }
+      digitalWrite(ZGantryStepperPulse, HIGH);
+      digitalWrite(ZGantryStepperPulse, LOW);
+      gantry_positions.z_gantry_step_count--;
+
+      delayMicroseconds(z_gantry_step_time);
+    }
+  }
+  gantry_positions.z_gantry_position = ((float)(gantry_positions.z_gantry_step_count) / z_gantry_steps_per_revolution) * z_gantry_distance_per_revolution;
+      
+  EEPROM_writeAnything(0, gantry_positions);
+  
+  move_z_gantry_flag = false;
+  // Disable Z Gantry Stepper
+  digitalWrite(ZGantryStepperEnable, HIGH);
+}
+#else
 void moveZGantry()
 {
   // Enable Z Gantry Stepper
@@ -1213,9 +1483,6 @@ void moveZGantry()
       digitalWrite(ZGantryStepperPulse, HIGH);
       digitalWrite(ZGantryStepperPulse, LOW);
       gantry_positions.z_gantry_step_count++;
-      gantry_positions.z_gantry_position = ((float)(gantry_positions.z_gantry_step_count) / z_gantry_steps_per_revolution) * z_gantry_distance_per_revolution;
-      
-      EEPROM_writeAnything(0, gantry_positions);
 
       delayMicroseconds(z_gantry_step_time);
     }
@@ -1259,13 +1526,13 @@ void moveZGantry()
       digitalWrite(ZGantryStepperPulse, HIGH);
       digitalWrite(ZGantryStepperPulse, LOW);
       gantry_positions.z_gantry_step_count--;
-      gantry_positions.z_gantry_position = ((float)(gantry_positions.z_gantry_step_count) / z_gantry_steps_per_revolution) * z_gantry_distance_per_revolution;
-      
-      EEPROM_writeAnything(0, gantry_positions);
 
       delayMicroseconds(z_gantry_step_time);
     }
   }
+  gantry_positions.z_gantry_position = ((float)(gantry_positions.z_gantry_step_count) / z_gantry_steps_per_revolution) * z_gantry_distance_per_revolution;
+      
+  EEPROM_writeAnything(0, gantry_positions);
   
   if(abs(num_z_gantry_steps) <= z_gantry_step_interval)
   {
@@ -1274,6 +1541,7 @@ void moveZGantry()
     digitalWrite(ZGantryStepperEnable, HIGH);
   }
 }
+#endif
 
 void turnArmTurntable()
 {
